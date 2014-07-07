@@ -1,0 +1,11 @@
+syntax: glob
+*.iml
+*.swp
+*.orig
+*.log
+syntax: regexp
+^.idea
+^target
+^.directory
+^out
+^bin
