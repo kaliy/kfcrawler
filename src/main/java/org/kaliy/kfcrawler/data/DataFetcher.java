@@ -1,7 +1,9 @@
 package org.kaliy.kfcrawler.data;
 
+import java.net.URL;
+
 public interface DataFetcher {
 
-    String getHtml(String url) throws DataFetchingException;
+    String getHtml(URL url) throws DataFetchingException;
 
 }
