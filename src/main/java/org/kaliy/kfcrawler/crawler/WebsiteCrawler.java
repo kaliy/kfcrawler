@@ -34,6 +34,7 @@ public class WebsiteCrawler {
     public Set<URL> crawlWebsite() {
         urls.add(website);
         urlsToVisit.add(website);
+        int index = 1;
         while (!urlsToVisit.isEmpty()) {
             try {
                 Thread.sleep(1000);
@@ -55,6 +56,7 @@ public class WebsiteCrawler {
                     }
                 }
                 visitedURLs.add(url);
+                logger.debug("Processed {}/{}", index++, 100);
             } catch (DataFetchingException e) {
                 logger.warn("Failed to retrieve page {}", url, e.getMessage());
             }

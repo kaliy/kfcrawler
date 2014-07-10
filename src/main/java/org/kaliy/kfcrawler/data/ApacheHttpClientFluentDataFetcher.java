@@ -13,8 +13,8 @@ public class ApacheHttpClientFluentDataFetcher implements DataFetcher {
         logger.debug("Fetching {}", url);
         try {
             return Request.Get(url.toURI())
-                    .connectTimeout(1000)
-                    .socketTimeout(1000)
+                    .connectTimeout(3000)
+                    .socketTimeout(3000)
                     .execute().returnContent().asString();
         } catch (Exception e) {
             throw new DataFetchingException(e);
