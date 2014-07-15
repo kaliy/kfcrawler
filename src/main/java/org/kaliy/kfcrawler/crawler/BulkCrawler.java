@@ -1,12 +1,12 @@
 package org.kaliy.kfcrawler.crawler;
 
 import com.google.common.util.concurrent.*;
+import org.kaliy.kfcrawler.data.FileCrawledDataExporter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.URL;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.*;
@@ -29,8 +29,10 @@ public class BulkCrawler {
             ListenableFuture<Set<URL>> fetchFuture = service.submit(new Callable<Set<URL>>() {
                 @Override
                 public Set<URL> call() throws Exception {
+                    logger.info("Starting crawling {}", website);
                     Set<URL> urls =  new WebsiteCrawler(website).crawlWebsite();
                     latch.countDown();
+                    logger.info("Finished crawling {}", website);
                     return urls;
                 }
             });
@@ -49,6 +51,7 @@ public class BulkCrawler {
         }
         try {
             latch.await();
+            Thread.sleep(2000);
         } catch (InterruptedException e) {
             e.printStackTrace();
         }

@@ -2,28 +2,28 @@ package org.kaliy.kfcrawler.crawler;
 
 import org.kaliy.kfcrawler.data.ApacheHttpClientFluentDataFetcher;
 import org.kaliy.kfcrawler.data.DataFetcher;
-import org.kaliy.kfcrawler.data.DataFetchingException;
 import org.kaliy.kfcrawler.html.JSoupLinkExtractor;
 import org.kaliy.kfcrawler.html.LinkExtractor;
-import org.kaliy.kfcrawler.util.LinkedHashSetQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.URL;
-import java.util.HashSet;
-import java.util.Queue;
 import java.util.Set;
+import java.util.concurrent.CopyOnWriteArraySet;
 
-public class WebsiteCrawler {
+public class WebsiteCrawler implements FetcherResultListener {
 
     private final static Logger logger = LoggerFactory.getLogger(WebsiteCrawler.class);
 
     private URL website;
     private DataFetcher dataFetcher;
     private LinkExtractor linkExtractor;
-    private Set<URL> visitedURLs = new HashSet<>();
-    private Queue<URL> urlsToVisit = new LinkedHashSetQueue<>();
-    private Set<URL> urls = new HashSet<>();
+    private Set<URL> visitedURLs = new CopyOnWriteArraySet<>();
+    private final Object monitor = new Object();
+    private Set<URL> urls = new CopyOnWriteArraySet<>();
+    private Set<URL> currentlyFetchingUrls = new CopyOnWriteArraySet<>();
+
+    private boolean shouldStop = false;
 
     public WebsiteCrawler(URL website) {
         this.website = website;
@@ -31,37 +31,51 @@ public class WebsiteCrawler {
         linkExtractor = new JSoupLinkExtractor();
     }
 
-    public Set<URL> crawlWebsite() {
-        urls.add(website);
-        urlsToVisit.add(website);
-        int index = 1;
-        while (!urlsToVisit.isEmpty()) {
-            try {
-                Thread.sleep(1000);
-            } catch (InterruptedException e) {
-                //TODO: dump info on interruption
-                e.printStackTrace();
-            }
-            URL url = urlsToVisit.poll();
+    private void addUrlToFetching(URL url) {
+        logger.debug("Adding to fetching queue {}", url);
+        dataFetcher.addToFetchingQueue(url, this);
+        visitedURLs.add(url);
+        currentlyFetchingUrls.add(url);
+    }
 
-            try {
-                String html = dataFetcher.getHtml(url);
-                Set<URL> fetchedURLs = linkExtractor.extractFromHtml(html, url);
-                for(URL fetchedURL: fetchedURLs) {
-                    if (isMoreURLsToCrawlNeeded() &&
-                            !visitedURLs.contains(fetchedURL) &&
-                            isURLBelongsToWebsite(fetchedURL)) {
-                        urlsToVisit.add(fetchedURL);
-                        urls.add(fetchedURL);
-                    }
+    public Set<URL> crawlWebsite() {
+        addUrlToFetching(website);
+        synchronized (monitor) {
+            while (!currentlyFetchingUrls.isEmpty()) {
+                try {
+                    monitor.wait();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
                 }
-                visitedURLs.add(url);
-                logger.debug("Processed {}/{}", index++, 100);
-            } catch (DataFetchingException e) {
-                logger.warn("Failed to retrieve page {}", url, e.getMessage());
             }
         }
         return urls;
+    }
+
+    @Override
+    public void onFetch(URL url, FetchResult result) {
+        if (result.isSuccessful()) {
+            logger.debug("Successfully fetched {}, processing {} bytes", url, result.getHtml().getBytes().length);
+            Set<URL> extractedUrls = linkExtractor.extractFromHtml(result.getHtml(), url);
+            for (URL urlFromPage : extractedUrls) {
+                if (urlFromPage.getHost().equals(website.getHost())) {
+                    urls.add(urlFromPage);
+                    if (shouldCrawl(urlFromPage)) {
+                        addUrlToFetching(urlFromPage);
+                    }
+                }
+            }
+        } else {
+            logger.debug("ololo fail {}", url);
+        }
+        currentlyFetchingUrls.remove(url);
+        synchronized (monitor) {
+            monitor.notifyAll();
+        }
+    }
+
+    private boolean shouldCrawl(URL url) {
+        return isMoreURLsToCrawlNeeded() && !visitedURLs.contains(url) && !currentlyFetchingUrls.contains(url);
     }
 
     private boolean isURLBelongsToWebsite(URL url) {
@@ -69,7 +83,7 @@ public class WebsiteCrawler {
     }
 
     private boolean isMoreURLsToCrawlNeeded() {
-        return visitedURLs.size() + urlsToVisit.size() < 100;
+        return visitedURLs.size()  < 100;
     }
 
     //<editor-fold desc="Getters and setters">
@@ -90,5 +104,6 @@ public class WebsiteCrawler {
         this.linkExtractor = linkExtractor;
         return this;
     }
+
     //</editor-fold>
 }
