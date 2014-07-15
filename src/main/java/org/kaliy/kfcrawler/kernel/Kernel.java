@@ -1,6 +1,7 @@
 package org.kaliy.kfcrawler.kernel;
 
 import org.kaliy.kfcrawler.crawler.BulkCrawler;
+import org.kaliy.kfcrawler.data.DataImportException;
 import org.kaliy.kfcrawler.data.FileCrawledDataExporter;
 import org.kaliy.kfcrawler.data.FileCrawlingWebsitesImporter;
 import org.slf4j.Logger;
@@ -16,7 +17,13 @@ public class Kernel {
 
     public static void main(String... args) throws MalformedURLException {
         logger.info("KFCrawler is starting");
-        List<URL> urlsToCrawl = new FileCrawlingWebsitesImporter().getWebsitesToCrawl();
+        List<URL> urlsToCrawl = null;
+        try {
+            urlsToCrawl = new FileCrawlingWebsitesImporter().getWebsitesToCrawl();
+        } catch (DataImportException e) {
+            logger.error("Can't import urls, exiting");
+            System.exit(1);
+        }
         new FileCrawledDataExporter().export(new BulkCrawler(urlsToCrawl).crawl());
     }
 

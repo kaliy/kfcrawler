@@ -36,7 +36,7 @@ public class JSoupLinkExtractor implements LinkExtractor {
                     url = uri.toURL();
                     urls.add(url);
                 } catch (Exception e) {
-                    logger.warn("Malformed URL: \"{}\", skipping", urlString);
+                    logger.debug("Malformed URL: \"{}\", skipping", urlString);
                 }
             }
         }

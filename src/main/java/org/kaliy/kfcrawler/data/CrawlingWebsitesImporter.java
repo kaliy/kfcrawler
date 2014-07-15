@@ -5,6 +5,6 @@ import java.util.List;
 
 public interface CrawlingWebsitesImporter {
 
-    List<URL> getWebsitesToCrawl();
+    List<URL> getWebsitesToCrawl() throws DataImportException;
 
 }
